@@ -41,8 +41,9 @@ jobs:
               PROXYIP=${{ github.event.inputs.PROXYIP }}
               echo "[+] PROXYIP: ${PROXYIP}"
               sed -i "s/%proxyip%/${PROXYIP}/g" ./wrangler.toml
-          - name: Deploy
+          - name: Deploy app
             uses: cloudflare/wrangler-action@v3
             with:
               apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
               accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
