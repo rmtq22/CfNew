@@ -1,43 +1,49 @@
-# Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
-
+name: Build CF Worker
 on:
-  # Runs on pushes targeting the default branch
-  push:
-    branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
-
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
+    inputs:
+      WORKER_NAME:
+        description: "Name of your worker"
+        required: true
+        type: string
+      DOMAIN_NAME:
+        description: "Name of your domain (not subdomain) at CF"
+        required: true
+        type: string
+      UUID:
+        description: "Your UUID or auto for autogenerate"
+        required: false
+        type: string
+        default: auto
+      PROXYIP:
+        description: "Valid IP proxy"
+        required: true
+        type: string
 jobs:
-  # Single deploy job since we're just deploying
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          # Upload entire repository
-          path: '.'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+    build:
+        name: Build
+        runs-on: ubuntu-latest
+        steps:
+          - uses: actions/checkout@v4
+          - name: Proccess variable
+            run: |
+              WORKER_NAME=${{ github.event.inputs.WORKER_NAME }}
+              echo "[+] WORKER_NAME: ${WORKER_NAME}"
+              sed -i "s/%worker_name%/${WORKER_NAME}/g" ./wrangler.toml
+              DOMAIN_NAME=${{ github.event.inputs.DOMAIN_NAME }}
+              SUBDOMAIN="${WORKER_NAME}.${DOMAIN_NAME}"
+              echo "[+] SUBDOMAIN: ${SUBDOMAIN}"
+              sed -i "s/%subdomain_name%/${SUBDOMAIN}/g" ./wrangler.toml
+              UUID=${{ github.event.inputs.UUID }}
+              [[ "${UUID}" == "auto" ]] && UUID=$(uuidgen -r)
+              echo "[+] UUID: ${UUID}"
+              sed -i "s/%uuid%/${UUID}/g" ./wrangler.toml
+              PROXYIP=${{ github.event.inputs.PROXYIP }}
+              echo "[+] PROXYIP: ${PROXYIP}"
+              sed -i "s/%proxyip%/${PROXYIP}/g" ./wrangler.toml
+          - name: Deploy app
+            uses: cloudflare/wrangler-action@v3
+            with:
+              apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+              accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
